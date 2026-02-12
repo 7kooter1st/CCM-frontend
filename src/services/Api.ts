@@ -1,4 +1,4 @@
-import { type UseCase } from '../types';
+import { type UseCase, type AuthResponse } from '../types';
 
 const BASE_URL = 'http://localhost:8000'; // Local backend address
 
@@ -6,47 +6,40 @@ const BASE_URL = 'http://localhost:8000'; // Local backend address
 const MOCK_USE_CASES: UseCase[] = [
   {
     id: 1,
-    title: "Просмотр видео (1080p)",
-    description: "Потоковое воспроизведение видео в высоком качестве через Wi-Fi.",
+    title: "Просмотр данного сайта",
+    description: "Если нет других сценариев",
     imageUrl: "https://images.unsplash.com/photo-1522869635100-1f4d061dd70f?q=80&w=600&auto=format&fit=crop",
-    energyConsumption: 450
+    energyConsumption: 200
   },
-  {
-    id: 2,
-    title: "Навигация GPS",
-    description: "Активное использование GPS модулей и экрана на высокой яркости.",
-    imageUrl: "https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?q=80&w=600&auto=format&fit=crop",
-    energyConsumption: 800
-  },
-  {
-    id: 3,
-    title: "Мессенджеры (Текст)",
-    description: "Фоновая работа и периодическая отправка текстовых сообщений.",
-    imageUrl: "https://images.unsplash.com/photo-1611746345961-475397d57238?q=80&w=600&auto=format&fit=crop",
-    energyConsumption: 150
-  },
-  {
-    id: 4,
-    title: "Видеозвонок",
-    description: "Двусторонняя видеосвязь с использованием камеры и микрофона.",
-    imageUrl: "https://images.unsplash.com/photo-1516387938699-a93567ec168e?q=80&w=600&auto=format&fit=crop",
-    energyConsumption: 950
-  },
-  {
-    id: 5,
-    title: "3D Игры",
-    description: "Интенсивная нагрузка на GPU и CPU.",
-    imageUrl: "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?q=80&w=600&auto=format&fit=crop",
-    energyConsumption: 1200
-  },
-  {
-    id: 6,
-    title: "Прослушивание музыки",
-    description: "Воспроизведение аудио с выключенным экраном.",
-    imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop",
-    energyConsumption: 80
-  }
 ];
+
+const getHeaders = (isPost: boolean = false) => {
+  const token = localStorage.getItem('token');
+  const headers: HeadersInit = {};
+  
+  if (isPost) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
+
+// Helper to normalize backend response data (handling PascalCase vs camelCase)
+const normalizeUseCase = (data: any): UseCase => {
+  return {
+    id: data.id ?? data.ID,
+    // Backend returns "Name", Frontend expects "title"
+    title: data.title ?? data.Title ?? data.Name ?? "Без названия",
+    description: data.description ?? data.Description,
+    // Backend returns "URL", Frontend expects "imageUrl"
+    imageUrl: data.imageUrl ?? data.ImageUrl ?? data.image_url ?? data.URL,
+    // Backend returns "Consumption", Frontend expects "energyConsumption"
+    energyConsumption: data.energyConsumption ?? data.EnergyConsumption ?? data.energy_consumption ?? data.Consumption ?? 0
+  };
+};
 
 export const api = {
   /**
@@ -55,18 +48,30 @@ export const api = {
   getUseCases: async (search?: string): Promise<UseCase[]> => {
     try {
       // Construct URL with query param for server-side filtering
-      const url = new URL(`${BASE_URL}/useCases`);
+      // ADDED: Trailing slash to match backend router expectations and avoid 301 Redirects
+      const url = new URL(`${BASE_URL}/useCases/`);
       if (search) {
         url.searchParams.append('title', search);
       }
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: getHeaders(false)
+      });
+      
       if (!response.ok) {
-        throw new Error(`Error fetching scenarios: ${response.statusText}`);
+        throw new Error(`Error fetching scenarios: ${response.status} ${response.statusText}`);
       }
-      return await response.json();
+      
+      const json = await response.json();
+      if (Array.isArray(json)) {
+        // Filter out items where IsDelete is true (based on backend JSON structure)
+        const activeItems = json.filter((item: any) => item.IsDelete !== true);
+        return activeItems.map(normalizeUseCase);
+      }
+      return [];
     } catch (error) {
-      console.warn("API unavailable, serving mock data.", error);
+      console.warn("API unavailable (using mock):", error);
       
       // Return mock data filtered by search term if API fails
       if (search) {
@@ -82,17 +87,63 @@ export const api = {
    * Fetch a single use case by ID
    */
   getUseCaseById: async (id: string): Promise<UseCase | null> => {
+    if (!id || id === 'undefined') return null;
+    
     try {
-      const response = await fetch(`${BASE_URL}/useCases/${id}`);
+      // ADDED: Trailing slash
+      const response = await fetch(`${BASE_URL}/useCases/${id}/`, {
+        method: 'GET',
+        headers: getHeaders(false)
+      });
       if (!response.ok) {
         throw new Error(`Error fetching scenario: ${response.statusText}`);
       }
-      return await response.json();
+      const json = await response.json();
+      return normalizeUseCase(json);
     } catch (error) {
-      console.warn("API unavailable, serving mock data for ID.", error);
+      console.warn("API unavailable (using mock):", error);
       // Return specific mock item
       const item = MOCK_USE_CASES.find(uc => uc.id === Number(id));
       return item || null;
+    }
+  },
+
+  /**
+   * Login user
+   */
+  login: async (username: string, password: string): Promise<AuthResponse> => {
+    try {
+      const response = await fetch(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (!response.ok) throw new Error("Login failed");
+      return await response.json();
+    } catch (error) {
+       console.warn("API login failed, using mock login", error);
+       // Mock login success
+       return { access_token: "mock-jwt-token-123", token_type: "bearer" };
+    }
+  },
+
+  /**
+   * Register user
+   */
+  register: async (username: string, password: string, email: string): Promise<AuthResponse> => {
+     try {
+      const response = await fetch(`${BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify({ username, password, email })
+      });
+      
+      if (!response.ok) throw new Error("Registration failed");
+      return await response.json();
+    } catch (error) {
+       console.warn("API register failed, using mock register", error);
+       return { access_token: "mock-jwt-token-123", token_type: "bearer" };
     }
   }
 };

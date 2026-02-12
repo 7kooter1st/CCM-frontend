@@ -9,3 +9,8 @@ export interface UseCase {
 export interface ConsumptionItem extends UseCase {
   minutes: number;
 }
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+}

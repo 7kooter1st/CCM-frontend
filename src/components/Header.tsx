@@ -1,9 +1,13 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Breadcrumbs from './BreadCrumbs';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  isAuthenticated: boolean;
+  onLogout: () => void;
+}
+
+const Header: React.FC<HeaderProps> = () => { //{ isAuthenticated, onLogout } 
   const location = useLocation();
 
   return (
@@ -26,9 +30,19 @@ const Header: React.FC = () => {
                         to="/consumption" 
                         className="btn btn-nav"
                     >
-                        К заявке
+                        потребление
                     </Link>
                 )}
+                
+                {/* {isAuthenticated ? (
+                  <button onClick={onLogout} className="btn btn-nav">
+                    Выйти
+                  </button>
+                ) : (
+                  <Link to="/login" className="btn btn-nav">
+                    Войти
+                  </Link>
+                )} */}
             </div>
         </div>
 
