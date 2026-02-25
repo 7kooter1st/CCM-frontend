@@ -33,16 +33,19 @@ const Header: React.FC<HeaderProps> = () => { //{ isAuthenticated, onLogout }
                         потребление
                     </Link>
                 )}
-                
-                {/* {isAuthenticated ? (
-                  <button onClick={onLogout} className="btn btn-nav">
-                    Выйти
-                  </button>
-                ) : (
-                  <Link to="/login" className="btn btn-nav">
-                    Войти
-                  </Link>
-                )} */}
+            </div>
+            <div
+                className="nav-mobile-wrapper"
+                onClick={(e) => e.currentTarget.classList.toggle('active')}
+                aria-label="Меню"
+            >
+                <div className="nav-mobile-target" />
+                <div className="nav-mobile-menu" onClick={(e) => e.stopPropagation()}>
+                    <Link to="/" className="btn btn-nav">Домой</Link>
+                    {location.pathname !== '/consumption' && (
+                        <Link to="/consumption" className="btn btn-nav">потребление</Link>
+                    )}
+                </div>
             </div>
         </div>
 

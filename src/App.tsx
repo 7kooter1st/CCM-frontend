@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { invoke } from '@tauri-apps/api/core';
+import { dest_root } from '../target_config';
+
 import Header from './components/Header';
 import Home from './pages/Home';
 import Details from './pages/Details';
@@ -21,7 +24,19 @@ const App: React.FC = () => {
     setIsAuthenticated(!!token);
   }, []);
 
-  const handleLogin = () => setIsAuthenticated(true);
+  // Tauri: при запуске в Tauri вызываем команду create; при размонтировании — close
+  useEffect(() => {
+    invoke('tauri', { cmd: 'create' })
+      .then(() => console.log('Tauri launched'))
+      .catch(() => console.log('Tauri not launched'));
+    return () => {
+      invoke('tauri', { cmd: 'close' })
+        .then(() => console.log('Tauri closed'))
+        .catch(() => console.log('Tauri not launched'));
+    };
+  }, []);
+
+  // handleLogin: при раскомментировании маршрутов /login и /register добавьте: const handleLogin = () => setIsAuthenticated(true);
   const handleLogout = () => {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
@@ -62,7 +77,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <HashRouter>
+    <HashRouter basename={dest_root}>
       <div className="app-root">
         <Header isAuthenticated={isAuthenticated} onLogout={handleLogout} />
         

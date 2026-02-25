@@ -1,6 +1,14 @@
 import { type UseCase, type AuthResponse } from '../types';
+import { api_proxy_addr } from '../../target_config';
 
-const BASE_URL = 'http://localhost:8000'; // Local backend address
+/** В браузере используем прокси (/api), в Tauri — прямой URL бэкенда, чтобы избежать CORS в браузере. */
+function getApiBase(): string {
+  if (typeof window === 'undefined') return '/api';
+  if ((window as unknown as { __TAURI__?: unknown }).__TAURI__) {
+    return `${api_proxy_addr}/api`;
+  }
+  return '/api';
+}
 
 // Mock data to serve when backend is unavailable
 const MOCK_USE_CASES: UseCase[] = [
@@ -49,7 +57,9 @@ export const api = {
     try {
       // Construct URL with query param for server-side filtering
       // ADDED: Trailing slash to match backend router expectations and avoid 301 Redirects
-      const url = new URL(`${BASE_URL}/useCases/`);
+      const apiBase = getApiBase();
+      const baseUrl = apiBase.startsWith('http') ? apiBase : `${window.location.origin}${apiBase}`;
+      const url = new URL(`${baseUrl}/usecases/`);
       if (search) {
         url.searchParams.append('title', search);
       }
@@ -91,7 +101,9 @@ export const api = {
     
     try {
       // ADDED: Trailing slash
-      const response = await fetch(`${BASE_URL}/useCases/${id}/`, {
+      const apiBase = getApiBase();
+      const baseUrl = apiBase.startsWith('http') ? apiBase : `${window.location.origin}${apiBase}`;
+      const response = await fetch(`${baseUrl}/usecases/${id}/`, {
         method: 'GET',
         headers: getHeaders(false)
       });
@@ -113,7 +125,9 @@ export const api = {
    */
   login: async (username: string, password: string): Promise<AuthResponse> => {
     try {
-      const response = await fetch(`${BASE_URL}/auth/login`, {
+      const apiBase = getApiBase();
+      const baseUrl = apiBase.startsWith('http') ? apiBase : `${window.location.origin}${apiBase}`;
+      const response = await fetch(`${baseUrl}/auth/login`, {
         method: 'POST',
         headers: getHeaders(true),
         body: JSON.stringify({ username, password })
@@ -133,7 +147,9 @@ export const api = {
    */
   register: async (username: string, password: string, email: string): Promise<AuthResponse> => {
      try {
-      const response = await fetch(`${BASE_URL}/auth/register`, {
+      const apiBase = getApiBase();
+      const baseUrl = apiBase.startsWith('http') ? apiBase : `${window.location.origin}${apiBase}`;
+      const response = await fetch(`${baseUrl}/auth/register`, {
         method: 'POST',
         headers: getHeaders(true),
         body: JSON.stringify({ username, password, email })
