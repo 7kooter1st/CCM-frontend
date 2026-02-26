@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Provider } from 'react-redux';
 import { registerSW } from 'virtual:pwa-register';
+import { store } from './src/store/store';
 import App from './src/App';
 
 const rootElement = document.getElementById('root');
@@ -11,7 +13,9 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <Provider store={store}>
+      <App />
+    </Provider>
   </React.StrictMode>
 );
 

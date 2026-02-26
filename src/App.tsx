@@ -1,30 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { dest_root } from '../target_config';
 
 import Header from './components/Header';
+import LoadingOverlay from './components/LoadingOverlay';
 import Home from './pages/Home';
 import Details from './pages/Details';
 import Consumption from './pages/Consumption';
-// import Login from './pages/Login';
-// import Register from './pages/Register';
-import { type ConsumptionItem, type UseCase } from './types';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Profile from './pages/Profile';
+import Applications from './pages/Applications';
+import ApplicationDetail from './pages/ApplicationDetail';
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import { fetchDraftThunk } from './store/thunks';
+import type { UseCase } from './types';
 
-// The App component holds the state instead of Context/Redux as per requirements
 const App: React.FC = () => {
-  // State for the "Consumption" page (The Cart)
-  const [consumptionItems, setConsumptionItems] = useState<ConsumptionItem[]>([]);
-  // Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const dispatch = useAppDispatch();
+  const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
+  const user = useAppSelector((s) => s.auth.user);
+  const [localItems, setLocalItems] = React.useState<{ id: number; title: string; imageUrl?: string; energyConsumption: number; minutes: number }[]>([]);
+
+  const addToLocalConsumption = (useCase: UseCase) => {
+    setLocalItems((prev) => {
+      const exists = prev.find((item) => item.id === useCase.id);
+      if (exists) {
+        return prev.map((item) =>
+          item.id === useCase.id ? { ...item, minutes: item.minutes + 10 } : item
+        );
+      }
+      return [...prev, { ...useCase, minutes: 0 }];
+    });
+  };
 
   useEffect(() => {
-    // Check for token on mount
-    const token = localStorage.getItem('token');
-    setIsAuthenticated(!!token);
-  }, []);
+    if (isAuthenticated && user) {
+      dispatch(fetchDraftThunk(user.id));
+    }
+  }, [isAuthenticated, user?.id]);
 
-  // Tauri: при запуске в Tauri вызываем команду create; при размонтировании — close
   useEffect(() => {
     invoke('tauri', { cmd: 'create' })
       .then(() => console.log('Tauri launched'))
@@ -36,80 +52,60 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // handleLogin: при раскомментировании маршрутов /login и /register добавьте: const handleLogin = () => setIsAuthenticated(true);
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsAuthenticated(false);
-  };
-
-  // Add an item to consumption
-  const addToConsumption = (useCase: UseCase) => {
-    setConsumptionItems((prev) => {
-      // Check if already exists to avoid duplicates
-      const exists = prev.find((item) => item.id === useCase.id);
-      if (exists) {
-        // If exists, just increase minutes by 10 as default action
-        return prev.map(item => 
-          item.id === useCase.id ? { ...item, minutes: item.minutes + 10 } : item
-        );
-      }
-      // Add new item with default 0 minutes (user must add time)
-      return [...prev, { ...useCase, minutes: 0 }];
-    });
-  };
-
-  // Update minutes for a specific item
-  const updateTime = (id: number, delta: number) => {
-    setConsumptionItems((prev) => 
-      prev.map((item) => {
-        if (item.id === id) {
-          const newMinutes = Math.max(0, item.minutes + delta);
-          return { ...item, minutes: newMinutes };
-        }
-        return item;
-      })
+  const updateLocalTime = (id: number, delta: number) => {
+    setLocalItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, minutes: Math.max(0, item.minutes + delta) } : item
+      )
     );
   };
-
-  // Remove item completely
-  const removeItem = (id: number) => {
-    setConsumptionItems((prev) => prev.filter(item => item.id !== id));
+  const removeLocalItem = (id: number) => {
+    setLocalItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   return (
     <HashRouter basename={dest_root}>
       <div className="app-root">
-        <Header isAuthenticated={isAuthenticated} onLogout={handleLogout} />
-        
+        <LoadingOverlay />
+        <Header />
         <main className="main-content">
           <Routes>
-            <Route 
-              path="/" 
-              element={<Home />} 
+            <Route path="/" element={<Home />} />
+            <Route
+              path="/login"
+              element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
             />
-            {/* <Route 
-              path="/login" 
-              element={isAuthenticated ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} />} 
+            <Route
+              path="/register"
+              element={isAuthenticated ? <Navigate to="/" replace /> : <Register />}
             />
-            <Route 
-              path="/register" 
-              element={isAuthenticated ? <Navigate to="/" replace /> : <Register onLogin={handleLogin} />} 
-            /> */}
-            <Route 
-              path="/use-cases/:id" 
-              element={<Details onAdd={addToConsumption} />} 
+            <Route
+              path="/profile"
+              element={isAuthenticated ? <Profile /> : <Navigate to="/login" replace />}
             />
-            <Route 
-              path="/consumption" 
+            <Route
+              path="/applications"
+              element={isAuthenticated ? <Applications /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/applications/draft"
+              element={isAuthenticated ? <ApplicationDetail /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/applications/:id"
+              element={isAuthenticated ? <ApplicationDetail /> : <Navigate to="/login" replace />}
+            />
+            <Route path="/use-cases/:id" element={<Details onAddLocal={addToLocalConsumption} />} />
+            <Route
+              path="/consumption"
               element={
-                <Consumption 
-                  items={consumptionItems} 
-                  onUpdateTime={updateTime}
-                  onRemove={removeItem}
+                <Consumption
+                  items={localItems}
+                  onUpdateTime={updateLocalTime}
+                  onRemove={removeLocalItem}
                 />
-              } 
+              }
             />
-            {/* Redirect unknown routes to home */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

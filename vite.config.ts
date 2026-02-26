@@ -28,6 +28,10 @@ export default defineConfig(({ mode }) => {
           target: api_proxy_addr,
           changeOrigin: true,
         },
+        '/users': {
+          target: api_proxy_addr,
+          changeOrigin: true,
+        },
       },
     },
     plugins: [
