@@ -2,6 +2,20 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Деплой на GitHub Pages
+
+Репозиторий: **CCM-frontend**. Сборка и публикация:
+
+```bash
+npm run deploy
+```
+
+**Важно:** открывать приложение нужно только по адресу:
+
+**https://7kooter1st.github.io/CCM-frontend/**
+
+Если открыть `.../consumption-manager/`, сервер отдаёт HTML вместо JS-файлов → в консоли ошибка MIME («text/html»). Это не баг приложения: для GitHub Pages `base` в Vite должен совпадать с именем репозитория (см. методичку), поэтому рабочий URL — только **CCM-frontend**.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh

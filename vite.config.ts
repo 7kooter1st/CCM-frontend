@@ -5,10 +5,9 @@ import { api_proxy_addr, dest_root } from './target_config'
 
 /**
  * Базовый путь для GitHub Pages — должен ТОЧНО совпадать с именем репозитория на GitHub.
- * URL сайта: https://<username>.github.io/<GITHUB_PAGES_BASE>/
- * Пример: репо "CCM-frontend" → base "/CCM-frontend"; репо "consumption-manager" → base "/consumption-manager"
+ * Репозиторий у вас: CCM-frontend → сайт: https://7kooter1st.github.io/CCM-frontend/
  */
-const GITHUB_PAGES_BASE = '/consumption-manager'
+const GITHUB_PAGES_BASE = '/CCM-frontend'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
