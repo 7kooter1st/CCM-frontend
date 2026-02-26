@@ -1,13 +1,26 @@
 import { type UseCase, type AuthResponse } from '../types';
 import { api_proxy_addr } from '../../target_config';
 
-/** В браузере используем прокси (/api), в Tauri — прямой URL бэкенда, чтобы избежать CORS в браузере. */
+const VITE_API_URL = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
+  ? String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+  : '';
+
+/** В браузере: прокси /api (локально) или VITE_API_URL (продакшен). В Tauri — прямой URL бэкенда. */
 function getApiBase(): string {
-  if (typeof window === 'undefined') return '/api';
+  if (typeof window === 'undefined') return VITE_API_URL ? `${VITE_API_URL}/api` : '/api';
   if ((window as unknown as { __TAURI__?: unknown }).__TAURI__) {
     return `${api_proxy_addr}/api`;
   }
+  if (VITE_API_URL) return `${VITE_API_URL}/api`;
   return '/api';
+}
+
+/** На GitHub Pages и других статических хостах нет бэкенда — не дергаем API, сразу отдаём mock. */
+function isStaticHostNoBackend(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (VITE_API_URL) return false;
+  const host = window.location.hostname;
+  return host !== 'localhost' && host !== '127.0.0.1';
 }
 
 // Mock data to serve when backend is unavailable
@@ -54,40 +67,32 @@ export const api = {
    * Fetch all use cases with optional search query for server-side filtering
    */
   getUseCases: async (search?: string): Promise<UseCase[]> => {
+    if (isStaticHostNoBackend()) {
+      const list = search
+        ? MOCK_USE_CASES.filter((uc) => uc.title.toLowerCase().includes(search.toLowerCase()))
+        : MOCK_USE_CASES;
+      return list;
+    }
     try {
-      // Construct URL with query param for server-side filtering
-      // ADDED: Trailing slash to match backend router expectations and avoid 301 Redirects
       const apiBase = getApiBase();
       const baseUrl = apiBase.startsWith('http') ? apiBase : `${window.location.origin}${apiBase}`;
       const url = new URL(`${baseUrl}/usecases/`);
-      if (search) {
-        url.searchParams.append('title', search);
-      }
+      if (search) url.searchParams.append('title', search);
 
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: getHeaders(false)
-      });
-      
+      const response = await fetch(url.toString(), { method: 'GET', headers: getHeaders(false) });
       if (!response.ok) {
         throw new Error(`Error fetching scenarios: ${response.status} ${response.statusText}`);
       }
-      
       const json = await response.json();
       if (Array.isArray(json)) {
-        // Filter out items where IsDelete is true (based on backend JSON structure)
         const activeItems = json.filter((item: any) => item.IsDelete !== true);
         return activeItems.map(normalizeUseCase);
       }
       return [];
     } catch (error) {
       console.warn("API unavailable (using mock):", error);
-      
-      // Return mock data filtered by search term if API fails
       if (search) {
-        return MOCK_USE_CASES.filter(uc => 
-          uc.title.toLowerCase().includes(search.toLowerCase())
-        );
+        return MOCK_USE_CASES.filter((uc) => uc.title.toLowerCase().includes(search.toLowerCase()));
       }
       return MOCK_USE_CASES;
     }
@@ -98,25 +103,22 @@ export const api = {
    */
   getUseCaseById: async (id: string): Promise<UseCase | null> => {
     if (!id || id === 'undefined') return null;
-    
+    if (isStaticHostNoBackend()) {
+      return MOCK_USE_CASES.find((uc) => uc.id === Number(id)) ?? null;
+    }
     try {
-      // ADDED: Trailing slash
       const apiBase = getApiBase();
       const baseUrl = apiBase.startsWith('http') ? apiBase : `${window.location.origin}${apiBase}`;
       const response = await fetch(`${baseUrl}/usecases/${id}/`, {
         method: 'GET',
-        headers: getHeaders(false)
+        headers: getHeaders(false),
       });
-      if (!response.ok) {
-        throw new Error(`Error fetching scenario: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Error fetching scenario: ${response.statusText}`);
       const json = await response.json();
       return normalizeUseCase(json);
     } catch (error) {
       console.warn("API unavailable (using mock):", error);
-      // Return specific mock item
-      const item = MOCK_USE_CASES.find(uc => uc.id === Number(id));
-      return item || null;
+      return MOCK_USE_CASES.find((uc) => uc.id === Number(id)) ?? null;
     }
   },
 

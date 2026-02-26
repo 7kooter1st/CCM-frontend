@@ -42,13 +42,11 @@ const App: React.FC = () => {
   }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
-    invoke('tauri', { cmd: 'create' })
-      .then(() => console.log('Tauri launched'))
-      .catch(() => console.log('Tauri not launched'));
+    const isTauri = typeof window !== 'undefined' && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
+    if (!isTauri) return;
+    invoke('tauri', { cmd: 'create' }).catch(() => {});
     return () => {
-      invoke('tauri', { cmd: 'close' })
-        .then(() => console.log('Tauri closed'))
-        .catch(() => console.log('Tauri not launched'));
+      invoke('tauri', { cmd: 'close' }).catch(() => {});
     };
   }, []);
 

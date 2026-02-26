@@ -18,12 +18,20 @@ import type {
 
 const isTauri = typeof window !== 'undefined' && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
 
+const VITE_API_URL = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
+  ? String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+  : '';
+
 const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
-/** Базовый URL для /api (защищённые маршруты) */
-const apiBase = isTauri ? `${api_proxy_addr}/api` : `${origin}/api`;
+/** Базовый URL для /api. На продакшене (GitHub Pages) задаётся через VITE_API_URL. */
+const apiBase = isTauri
+  ? `${api_proxy_addr}/api`
+  : VITE_API_URL
+    ? `${VITE_API_URL}/api`
+    : `${origin}/api`;
 /** Базовый URL для /users (логин, регистрация) */
-const usersBase = isTauri ? api_proxy_addr : origin;
+const usersBase = isTauri ? api_proxy_addr : VITE_API_URL || origin;
 
 function createApiClient(): AxiosInstance {
   const client = axios.create({
