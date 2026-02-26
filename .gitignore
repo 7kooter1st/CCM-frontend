@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tauri / Rust — артефакты сборки (не выкладывать в репозиторий)
+src-tauri/target/
