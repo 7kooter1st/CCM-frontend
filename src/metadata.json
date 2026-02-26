@@ -1,5 +1,0 @@
-{
-  "name": "Charge Consumption Manager",
-  "description": "A frontend application for managing and calculating smartphone energy consumption scenarios based on a local backend.",
-  "requestFramePermissions": []
-}
